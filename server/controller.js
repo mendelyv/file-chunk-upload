@@ -17,7 +17,8 @@ module.exports = class {
 			const [chunk] = files.chunk;
 			const [hash] = fields.hash;
 			const [filename] = fields.filename;
-			const chunkDir = path.resolve(UPLOAD_DIR, 'chunkDir' + filename);
+			const [fileHash] = fields.fileHash;
+			const chunkDir = path.resolve(UPLOAD_DIR, `${fileHash}`);
 
 			if(!fse.existsSync(chunkDir)) {
 				await fse.mkdirs(chunkDir);
@@ -31,9 +32,11 @@ module.exports = class {
 	async handleMerge(req, res) {
 		const data = await parseRequest(req);
 		const filename = data.filename;
+		const fileHash = data.fileHash;
+		const extension = getExtension(filename);
 		const size = data.size;
-		const filePath = path.resolve(UPLOAD_DIR, filename);
-		await mergeFileChunks(filePath, filename, size);
+		const filePath = path.resolve(UPLOAD_DIR, `${fileHash}${extension}`);
+		await mergeFileChunks(filePath, fileHash, size);
 		res.end('merged file chunks');
 	}
 
@@ -54,22 +57,20 @@ async function parseRequest(req) {
 }
 
 
-async function mergeFileChunks(filePath, filename, size) {
-	const chunkDir = path.resolve(UPLOAD_DIR, 'chunkDir' + filename);
+async function mergeFileChunks(filePath, fileHash, size) {
+	const chunkDir = path.resolve(UPLOAD_DIR, `${fileHash}`);
 	const chunkPaths = await fse.readdir(chunkDir);
 	chunkPaths.sort((a, b) => { return a.split('-')[1] - b.split('-')[1] });
-	await Promise.all(
-		chunkPaths.map((chunkPath, index) => {
-			pipeStream(path.resolve(chunkDir, chunkPath),
-			fse.createWriteStream(filePath, { start: index * size }));
-		})
-	);
-	// fse.rmdirSync(chunkDir);
+	let tasks = chunkPaths.map((chunkPath, index) => {
+		return pipeStream(path.resolve(chunkDir, chunkPath), fse.createWriteStream(filePath, { start: index * size }));
+	});
+	await Promise.all(tasks);
+	fse.rmdirSync(chunkDir);
 }
 
 
 async function pipeStream(path, writeStream) {
-	new Promise(resolve => {
+	return new Promise(resolve => {
 		const readStream = fse.createReadStream(path);
 		readStream.on('end', () => {
 			fse.unlinkSync(path);
@@ -77,4 +78,9 @@ async function pipeStream(path, writeStream) {
 		});
 		readStream.pipe(writeStream);
 	})
+}
+
+
+function getExtension(filename) {
+	return filename.slice(filename.lastIndexOf('.'), filename.length);
 }
