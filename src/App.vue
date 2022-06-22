@@ -67,6 +67,11 @@ export default {
 			if(!this.container.file) return;
 			const fileChunkList = this.createFileChunk(this.container.file);
 			this.container.hash = await this.calculateHash(fileChunkList);
+			const {exists} = await this.verifyFile(this.container.file.name, this.container.hash);
+			if(exists) {
+				console.log('文件已存在');
+				return;
+			}
 			this.data = fileChunkList.map(({file}, index) => ({
 				fileHash: this.container.hash,
 				chunk: file,
@@ -130,6 +135,20 @@ export default {
 				}
 				loadNext(0);
 			});
+		},
+
+		async verifyFile(filename, fileHash) {
+			const {data} = await this.request({
+				url: "http://localhost:9339/verify",
+				data: JSON.stringify({
+					filename,
+					fileHash,
+				}),
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
+			return JSON.parse(data);
 		},
 
 		request({url, method = "post", data, headers = {}, onProgress = () => {}}) {

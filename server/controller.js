@@ -40,6 +40,19 @@ module.exports = class {
 		res.end('merged file chunks');
 	}
 
+	async handleVerifyFile(req, res) {
+		const data = await parseRequest(req);
+		const fileHash = data.fileHash;
+		const filename = data.filename;
+		const extension = getExtension(filename);
+		const filePath = path.resolve(UPLOAD_DIR, `${fileHash}${extension}`);
+		if(fse.existsSync(filePath)) {
+			res.end(JSON.stringify({exists: true}));
+		} else {
+			res.end(JSON.stringify({exists: false}));
+		}
+	}
+
 
 }
 

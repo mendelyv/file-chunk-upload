@@ -16,3 +16,4 @@ yarn-error.log*
 .editorconfig
 .postcssrc.js
 package-lock.json
+server/uploads

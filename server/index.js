@@ -20,9 +20,13 @@ server.on("request", async (req, res) => {
 		await controller.handleUpload(req, res);
 	}
 
-
 	if(req.url === '/merge') {
 		await controller.handleMerge(req, res);
+		return;
+	}
+
+	if(req.url === '/verify') {
+		await controller.handleVerifyFile(req, res);
 		return;
 	}
 
