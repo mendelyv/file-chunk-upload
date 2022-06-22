@@ -4,6 +4,7 @@
 		<div>
 			<input type="file" @change="handleFileChange" />
 			<el-button @click="handleUpload">上传</el-button>
+			<el-button @click="handlePause">暂停</el-button>
 		</div>
 		<div>
 			<div>进度：</div>
@@ -23,7 +24,8 @@ export default {
 		container: {
 			file: null,
 		},
-		data: []
+		data: [],
+		requestList: [],
 	}),
 	methods: {
 
@@ -56,7 +58,8 @@ export default {
 				return this.request({
 					url: "http://localhost:9339",
 					data: formData,
-					onProgress: this.createProgressHandle(this.data[index])
+					onProgress: this.createProgressHandle(this.data[index]),
+					requestList: this.requestList,
 				})
 			});
 			await Promise.all(requestList);
@@ -81,6 +84,11 @@ export default {
 				size: file.size,
 			}));
 			await this.uploadChunks();
+		},
+
+		async handlePause() {
+			this.requestList.forEach(request => request.abort());
+			this.requestList = [];
 		},
 
 		async mergeRequest() {
@@ -151,7 +159,7 @@ export default {
 			return JSON.parse(data);
 		},
 
-		request({url, method = "post", data, headers = {}, onProgress = () => {}}) {
+		request({url, method = "post", data, headers = {}, onProgress = () => {}, requestList}) {
 			return new Promise((resolve, reject) => {
 				const xhr = new XMLHttpRequest();
 				xhr.upload.onprogress = onProgress;
@@ -161,10 +169,15 @@ export default {
 				});
 				xhr.send(data);
 				xhr.onload = e => {
+					if(requestList) {
+						const xhrIdx = requestList.findIndex(req => req.xhr === xhr);
+						requestList.splice(xhrIdx, 1);
+					}
 					resolve({
 							data: e.target.response,
 					})
 				}
+				if(requestList) requestList.push(xhr);
 			});
 		},
 
