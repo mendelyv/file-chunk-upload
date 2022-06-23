@@ -49,7 +49,10 @@ module.exports = class {
 		if(fse.existsSync(filePath)) {
 			res.end(JSON.stringify({exists: true}));
 		} else {
-			res.end(JSON.stringify({exists: false}));
+			res.end(JSON.stringify({
+				exists: false,
+				chunks: await getChunks(fileHash),
+			}));
 		}
 	}
 
@@ -73,12 +76,14 @@ async function parseRequest(req) {
 async function mergeFileChunks(filePath, fileHash, size) {
 	const chunkDir = path.resolve(UPLOAD_DIR, `${fileHash}`);
 	const chunkPaths = await fse.readdir(chunkDir);
-	chunkPaths.sort((a, b) => { return a.split('-')[1] - b.split('-')[1] });
-	let tasks = chunkPaths.map((chunkPath, index) => {
+	const regex = new RegExp(`${fileHash}`);
+	const mergeFiles = chunkPaths.filter((name) => { if (name.match(regex)) return name; }).
+	sort((a, b) => { return a.split('-')[1] - b.split('-')[1] });
+	let tasks = mergeFiles.map((chunkPath, index) => {
 		return pipeStream(path.resolve(chunkDir, chunkPath), fse.createWriteStream(filePath, { start: index * size }));
 	});
 	await Promise.all(tasks);
-	fse.rmdirSync(chunkDir);
+	// fse.rmdirSync(chunkDir);
 }
 
 
@@ -96,4 +101,9 @@ async function pipeStream(path, writeStream) {
 
 function getExtension(filename) {
 	return filename.slice(filename.lastIndexOf('.'), filename.length);
+}
+
+
+async function getChunks(fileHash) {
+	return fse.existsSync(path.resolve(UPLOAD_DIR, fileHash)) ? await fse.readdir(path.resolve(UPLOAD_DIR, fileHash)) : [];
 }

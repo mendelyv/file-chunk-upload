@@ -5,6 +5,7 @@
 			<input type="file" @change="handleFileChange" />
 			<el-button @click="handleUpload">上传</el-button>
 			<el-button @click="handlePause">暂停</el-button>
+			<el-button @click="handleResume">继续</el-button>
 		</div>
 		<div>
 			<div>进度：</div>
@@ -27,6 +28,9 @@ export default {
 		data: [],
 		requestList: [],
 	}),
+	created() {
+		window["app"] = this;
+	},
 	methods: {
 
 		handleFileChange(e) {
@@ -46,15 +50,34 @@ export default {
 			return fileChunkList;
 		},
 
-		async uploadChunks() {
-			const requestList = this.data.map(({chunk, hash, index}) => {
+		async uploadChunks(chunks = []) {
+			// const requestList = this.data
+			// .filter(({hash}) => !chunks.includes(hash))
+			// .map(({chunk, hash, index}) => {
+			// 	const formData = new FormData();
+			// 	formData.append('chunk', chunk);
+			// 	formData.append('hash', hash);
+			// 	formData.append('filename', this.container.file.name);
+			// 	formData.append('fileHash', this.container.hash);
+			// 	return {formData, index};
+			// }).map(({formData, index}) => {
+			// 	return this.request({
+			// 		url: "http://localhost:9339",
+			// 		data: formData,
+			// 		onProgress: this.createProgressHandle(this.data[index]),
+			// 		requestList: this.requestList,
+			// 	})
+			// });
+			let filterData = this.data.filter(({hash}) => !chunks.includes(hash));
+			let formData = filterData.map(({chunk, hash, index}) => {
 				const formData = new FormData();
 				formData.append('chunk', chunk);
 				formData.append('hash', hash);
 				formData.append('filename', this.container.file.name);
 				formData.append('fileHash', this.container.hash);
 				return {formData, index};
-			}).map(({formData, index}) => {
+			});
+			let requestList = formData.map(({formData, index}) => {
 				return this.request({
 					url: "http://localhost:9339",
 					data: formData,
@@ -63,14 +86,17 @@ export default {
 				})
 			});
 			await Promise.all(requestList);
-			await this.mergeRequest();
+			if(chunks.length + requestList.length >= this.data.length) {
+				// await this.mergeRequest();
+				console.log('merge request');
+			}
 		},
 
 		async handleUpload() {
 			if(!this.container.file) return;
 			const fileChunkList = this.createFileChunk(this.container.file);
 			this.container.hash = await this.calculateHash(fileChunkList);
-			const {exists} = await this.verifyFile(this.container.file.name, this.container.hash);
+			const {exists, chunks} = await this.verifyFile(this.container.file.name, this.container.hash);
 			if(exists) {
 				console.log('文件已存在');
 				return;
@@ -83,12 +109,17 @@ export default {
 				percent: 0,
 				size: file.size,
 			}));
-			await this.uploadChunks();
+			await this.uploadChunks(chunks);
 		},
 
 		async handlePause() {
 			this.requestList.forEach(request => request.abort());
 			this.requestList = [];
+		},
+
+		async handleResume() {
+			const {chunks} = await this.verifyFile(this.container.file.name, this.container.hash);
+			await this.uploadChunks(chunks);
 		},
 
 		async mergeRequest() {
