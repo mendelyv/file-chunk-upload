@@ -51,33 +51,16 @@ export default {
 		},
 
 		async uploadChunks(chunks = []) {
-			// const requestList = this.data
-			// .filter(({hash}) => !chunks.includes(hash))
-			// .map(({chunk, hash, index}) => {
-			// 	const formData = new FormData();
-			// 	formData.append('chunk', chunk);
-			// 	formData.append('hash', hash);
-			// 	formData.append('filename', this.container.file.name);
-			// 	formData.append('fileHash', this.container.hash);
-			// 	return {formData, index};
-			// }).map(({formData, index}) => {
-			// 	return this.request({
-			// 		url: "http://localhost:9339",
-			// 		data: formData,
-			// 		onProgress: this.createProgressHandle(this.data[index]),
-			// 		requestList: this.requestList,
-			// 	})
-			// });
-			let filterData = this.data.filter(({hash}) => !chunks.includes(hash));
-			let formData = filterData.map(({chunk, hash, index}) => {
+			const requestList = this.data
+			.filter(({hash}) => !chunks.includes(hash))
+			.map(({chunk, hash, index}) => {
 				const formData = new FormData();
 				formData.append('chunk', chunk);
 				formData.append('hash', hash);
 				formData.append('filename', this.container.file.name);
 				formData.append('fileHash', this.container.hash);
 				return {formData, index};
-			});
-			let requestList = formData.map(({formData, index}) => {
+			}).map(({formData, index}) => {
 				return this.request({
 					url: "http://localhost:9339",
 					data: formData,
@@ -87,8 +70,7 @@ export default {
 			});
 			await Promise.all(requestList);
 			if(chunks.length + requestList.length >= this.data.length) {
-				// await this.mergeRequest();
-				console.log('merge request');
+				await this.mergeRequest();
 			}
 		},
 
@@ -142,16 +124,16 @@ export default {
 			}
 		},
 
-		// calculateHash(fileChunks) {
-		// 	return new Promise((resolve, reject) => {
-		// 		this.container.worker = new Worker('/hash.js');
-		// 		this.container.worker.postMessage({fileChunks});
-		// 		this.container.worker.onmessage = (e) => {
-		// 			const hash = e.data.hash;
-		// 			if(hash) { resolve(hash); }
-		// 		}
-		// 	})
-		// },
+		asyncCalculateHash(fileChunks) {
+			return new Promise((resolve, reject) => {
+				this.container.worker = new Worker('/hash.js');
+				this.container.worker.postMessage({fileChunks});
+				this.container.worker.onmessage = (e) => {
+					const hash = e.data.hash;
+					if(hash) { resolve(hash); }
+				}
+			})
+		},
 
 		async calculateHash(fileChunks) {
 			const spark = new sparkMD5.ArrayBuffer();

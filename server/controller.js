@@ -83,7 +83,7 @@ async function mergeFileChunks(filePath, fileHash, size) {
 		return pipeStream(path.resolve(chunkDir, chunkPath), fse.createWriteStream(filePath, { start: index * size }));
 	});
 	await Promise.all(tasks);
-	// fse.rmdirSync(chunkDir);
+	fse.rmdirSync(chunkDir);
 }
 
 
