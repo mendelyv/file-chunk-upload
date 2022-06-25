@@ -18,6 +18,7 @@
 
 import sparkMD5 from 'spark-md5';
 const SIZE = 10 * 1024 * 1024;
+const URL = 'http://127.0.0.1:7001/api';
 
 export default {
   name: 'App',
@@ -62,7 +63,7 @@ export default {
 				return {formData, index};
 			}).map(({formData, index}) => {
 				return this.request({
-					url: "http://localhost:9339",
+					url: `${URL}/file/upload`,
 					data: formData,
 					onProgress: this.createProgressHandle(this.data[index]),
 					requestList: this.requestList,
@@ -106,7 +107,7 @@ export default {
 
 		async mergeRequest() {
 			await this.request({
-				url: "http://localhost:9339/merge",
+				url: `${URL}/file/merge`,
 				headers: {
 					'Content-Type': 'application/json',
 				},
@@ -117,6 +118,21 @@ export default {
 				})
 			});
 		},
+
+
+		async deleteRequest() {
+			await this.request({
+				url: `${URL}/file/delete`,
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				data: JSON.stringify({
+					fileHash: this.container.hash,
+					filename: this.container.file.name,
+				})
+			});
+		},
+
 
 		createProgressHandle(item) {
 			return (e) => {
@@ -160,7 +176,7 @@ export default {
 
 		async verifyFile(filename, fileHash) {
 			const {data} = await this.request({
-				url: "http://localhost:9339/verify",
+				url: `${URL}/file/verify`,
 				data: JSON.stringify({
 					filename,
 					fileHash,
@@ -169,7 +185,7 @@ export default {
 					'Content-Type': 'application/json',
 				},
 			});
-			return JSON.parse(data);
+			return JSON.parse(data).data;
 		},
 
 		request({url, method = "post", data, headers = {}, onProgress = () => {}, requestList}) {
